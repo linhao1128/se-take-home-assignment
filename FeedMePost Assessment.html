@@ -1,0 +1,184 @@
+<head>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script>
+        var pendingList = [];
+        var completeList = [];
+        var botList = [];
+        var botCounter = 1;
+        var orderCounter = 1;
+
+        $(document).ready(function () {
+            $("#btnNewOrder").on("click", function () {
+                AddNewOrder("ORDER", 2);
+            });
+
+            $("#btnNewVIPOrder").on("click", function () {
+                AddNewOrder("VIP", 1);
+            });
+
+            $("#btnAddBot").on("click", function () {
+                let newBot = { 'botId': botCounter, 'orderProcessing': null}
+                botList.push(newBot);
+
+
+                let botHtml = "<div id='bot" + botCounter + "' style='border: 1px solid black'>" +
+					"Bot" +
+					"<div id='processingOrder" + botCounter + "'></div>"
+                "</div>";
+
+                $("#divBotList").append(botHtml);
+                ProcessOrder(newBot);
+                botCounter++;
+            });
+
+
+            $("#btnRemoveBot").on("click", function () {
+                if (botList && botList.length > 0) {
+                    let bot = botList[botList.length - 1];
+                    let botOrder = bot.orderProcessing;
+                    let orderType;
+
+                    //if the bot has order in process, move the order to pendinglist before remove the bot.
+                    if (botOrder) {
+                        pendingList.push({ 'orderId': botOrder.orderId, 'orderNo': botOrder.orderNo, 'orderType': botOrder.orderType });
+                        RefreshPendingList();
+                    }
+                    botList = botList.filter(x => x.botId != bot.botId);
+                    $("#bot" + bot.botId).remove();
+                }
+            });
+        })
+
+        function AddNewOrder(orderPrefix, orderType) {
+            let orderNo = orderPrefix + String(orderCounter).padStart(5, "0")
+            pendingList.push({ 'orderId': orderCounter, 'orderNo': orderNo, 'orderType': orderType });
+            orderCounter++;
+            RefreshPendingList();
+        }
+
+
+        function ProcessOrder(bot) {
+            let orderToProcess;
+            let count;
+            if (bot && bot.botId) {
+
+                let counter = setInterval(() => {
+
+                    //if the bot doesn't have order in process, get one from pending list and assign the order to the bot to process.
+                    if (!bot.orderProcessing) {
+                        if (pendingList && pendingList.length > 0) {
+                            count = 10;
+                            orderToProcess = pendingList[0];
+                            bot.orderProcessing = orderToProcess;
+                            $("#processingOrder" + bot.botId).html(orderToProcess.orderNo + " " + count + " seconds left");
+                            pendingList = pendingList.filter(x => x.orderNo != orderToProcess.orderNo);
+                            RefreshPendingList();
+                        }
+                    } else {
+
+                        //if the bot is processing the order, check if the bot is removed, if yes, clear the interval to stop the counting.
+                        if (BotExists(bot.botId)) {
+
+                            //if the order finished processed (count == 0), move the order to complete list.
+                            if (count == 0) {
+                                completeList.push(orderToProcess);
+                                RefreshCompleteList();
+                                $("#processingOrder" + bot.botId).html("");
+                                bot.orderProcessing = null;
+                            }
+
+
+                            count--;
+
+                            if (count >= 0) {
+                                $("#processingOrder" + bot.botId).html(orderToProcess.orderNo + " " + count + " seconds left");
+                            }
+                        } else {
+                            clearInterval(counter);
+                        }
+                        
+
+                    }
+                }, 1000);
+            }
+
+        }
+
+        //function to check if the bot is removed.
+        function BotExists(botId) {
+            let bot = botList.find(x => x.botId == botId);
+            return bot ? true : false;
+        }
+
+        function RefreshPendingList() {
+            $("#divPendingList").html("");
+
+            //sort the pendingList by order type and order no.
+            pendingList = pendingList.sort((a, b) => {
+                if (a.orderType === b.orderType) {
+                    return a.orderId < b.orderId ? -1 : 1
+                } else {
+                    return a.orderType < b.orderType ? -1 : 1
+                }
+            })
+
+            pendingList.forEach(
+                obj => {
+                    if (obj && obj.orderNo)
+                        $("#divPendingList").append("<div>" + obj.orderNo + "</div>");
+                }
+            );
+        }
+
+        function RefreshCompleteList() {
+            $("#divCompleteList").html("");
+            completeList.forEach(
+                obj => {
+                    if (obj && obj.orderNo)
+                        $("#divCompleteList").append("<div>" + obj.orderNo + "</div>");
+                }
+            );
+        }
+
+    </script>
+</head>
+<body>
+    <h2>MacDonald</h2>
+    <input type="button" id="btnNewOrder" value="New Normal Order" />
+    <input type="button" id="btnNewVIPOrder" value="New VIP order" />
+    <input type="button" id="btnAddBot" value="+ Bot" />
+    <input type="button" id="btnRemoveBot" value="- Bot" />
+
+    <br />
+    <br />
+    <div style="display: inline-flex">
+        <div id="divOrderArea" style="display: inline-flex">
+            <div>
+                <span>Pending List</span>
+                <div id="divPendingList" style="border: 1px solid red; width: 120px; height: 500px; overflow:auto">
+
+                </div>
+            </div>
+            <div style="margin-left: 20px;">
+                <span>Complete List</span>
+                <div id="divCompleteList" style="border: 1px solid red; width: 120px; height: 500px; overflow:auto">
+
+                </div>
+            </div>
+        </div>
+
+        <div id="divBotArea" style="margin-left: 20px;">
+            <span>Bot </span>
+            <div id="divBotList" style="border: 1px solid Black; width: 800px; height: 800px; overflow:auto">
+
+            </div>
+        </div>
+    </div>
+
+</body>
+
+
+
+
+
+
